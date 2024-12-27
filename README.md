@@ -109,7 +109,7 @@ Open the web client in your browser http://localhost:3333.
 ```bash
 docker compose exec \
 -e ADMIN="'USERNAME'" \
-mariadb sh -c 'echo "UPDATE players SET group_id = 0 WHERE username = $ADMIN;" | mariadb -u"$MARIADB_ROOT_USER" -p"$MARIADB_ROOT_PASSWORD" openrsc'
+mariadb sh -c 'echo "UPDATE players SET group_id = 0 WHERE username = $ADMIN;" | mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" openrsc'
 ```
 
 See: [OpenRSC Commands](https://github.com/Open-RSC/Core-Framework/blob/develop/Commands.md)
