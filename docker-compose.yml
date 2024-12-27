@@ -35,8 +35,9 @@
     restart: always
     environment:
       - MARIADB_DATABASE=openrsc
-      - MARIADB_ROOT_USER=${DB_USER:-root}
-      - MARIADB_ROOT_PASSWORD=${DB_USER:-root}
+      - MARIADB_USER=${DB_USER:-openrsc}
+      - MARIADB_PASSWORD=${DB_PASSWORD:-openrsc}
+      - MARIADB_ROOT_PASSWORD=${DB_PASSWORD:-root}
       - MARIADB_ALLOW_EMPTY_PASSWORD=no
     ports:
       - "${DB_PORT:-3307}:3306"
