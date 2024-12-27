@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, user-scalable=no" />
+        <link rel="manifest" href="/manifest.json">
+        <title>Runescape by Andrew Gower</title>
+        <style>
+            html,
+            body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+            }
+
+            body {
+                background-color: #000;
+            }
+
+            /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+            canvas.emscripten {
+                border: 0px none;
+                background-color: black;
+                display: block;
+            }
+
+            canvas.emscripten:focus {
+                outline: none;
+            }
+
+            .mudclient-font-bold-12 {
+                font-size: 12px;
+                font-weight: bold;
+                /*height: 13px;*/
+                margin-top: -6px;
+                height: 25px;
+            }
+
+            .mudclient-font-bold-14 {
+                font-size: 15px;
+                font-weight: bold;
+                height: 16px;
+            }
+
+            .mudclient-font-bold-16 {
+                font-size: 16px;
+                font-weight: bold;
+            }
+
+            .mudclient-keyboard {
+                background: none;
+                font-family: Arial, sans-serif;
+                border: 0;
+                color: transparent;
+                display: none;
+                padding: 0;
+                position: absolute;
+                resize: none;
+                text-align: center;
+                transform-origin: 0 0;
+                /*background: red;
+                color: black;*/
+            }
+
+            .mudclient-keyboard:focus {
+                outline: none;
+            }
+
+            #mudclient-password {
+                font-family: monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas
+            class="emscripten"
+            id="canvas"
+            oncontextmenu="event.preventDefault()"
+            tabindex="-1"
+            autofocus="autofocus"
+        ></canvas>
+
+        <input id="mudclient-keyboard" class="mudclient-keyboard" type="text" />
+
+        <input
+            id="mudclient-password"
+            class="mudclient-keyboard"
+            type="password"
+        />
+
+        <script>
+            var Module = {
+                preInit: [],
+                preRun: [
+                    function () {
+                        ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = '#canvas';
+                    }
+                ],
+                postRun: [],
+                print: (function () {
+                    return function (text) {
+                        if (arguments.length > 1) {
+                            text = Array.prototype.slice
+                                .call(arguments)
+                                .join(' ');
+                        }
+
+                        console.log(text);
+                    };
+                })(),
+                canvas: (function () {
+                    var canvas = document.getElementById('canvas');
+
+                    canvas.addEventListener(
+                        'webglcontextlost',
+                        function (e) {
+                            alert(
+                                'WebGL context lost. You will need to reload the page.'
+                            );
+                            e.preventDefault();
+                        },
+                        false
+                    );
+
+                    // for rotating the camera off-window
+                    window.addEventListener(
+                        'mousemove',
+                        (event) => {
+                            if (
+                                event.clientX < 0 ||
+                                event.clientX > window.innerWidth
+                            ) {
+                                Module.ccall(
+                                    'browser_mouse_moved',
+                                    null,
+                                    ['number'],
+                                    [event.clientX, event.clientY]
+                                );
+                            }
+                        },
+                        false
+                    );
+
+                    canvas.addEventListener('mousedown', focusCanvas);
+
+                    const requestFullscreen =
+                        Element.prototype.requestFullscreen ||
+                        Element.prototype.webkitRequestFullscreen;
+
+                    const shouldPreventTouch = () => {
+                        return (
+                            requestFullscreen &&
+                            !(
+                                document.fullscreenElement ||
+                                document.webkitFullscreenElement
+                            )
+                        );
+                    };
+
+                    canvas.addEventListener('touchstart', (event) => {
+                        if (shouldPreventTouch()) {
+                            event.stopImmediatePropagation();
+                        }
+
+                        focusCanvas();
+                    });
+
+                    canvas.addEventListener('touchend', (event) => {
+                        if (shouldPreventTouch()) {
+                            event.stopImmediatePropagation();
+                            requestFullscreen.bind(document.documentElement)();
+                        }
+                    });
+
+                    canvas.addEventListener('touchmove', (event) => {
+                        if (shouldPreventTouch()) {
+                            event.stopImmediatePropagation();
+                        }
+                    });
+
+                    return canvas;
+                })(),
+                setStatus: function (text) {},
+                totalDependencies: 0,
+                monitorRunDependencies: function (left) {
+                    this.totalDependencies = Math.max(
+                        this.totalDependencies,
+                        left
+                    );
+
+                    Module.setStatus(
+                        left
+                            ? 'Preparing... (' +
+                                  (this.totalDependencies - left) +
+                                  '/' +
+                                  this.totalDependencies +
+                                  ')'
+                            : 'All downloads complete.'
+                    );
+                }
+            };
+
+            Module.setStatus('Downloading...');
+
+            window.onerror = function () {
+                Module.setStatus('Exception thrown, see JavaScript console');
+
+                Module.setStatus = function (text) {
+                    if (text) {
+                        console.error('[post-exception status] ' + text);
+                    }
+                };
+            };
+
+            const ENTER_KEY_CODE = 13;
+            const BACKSPACE_KEY_CODE = 8;
+
+            const keyboardInput = document.getElementById('mudclient-keyboard');
+            const passwordInput = document.getElementById('mudclient-password');
+
+            function focusCanvas() {
+                // keyboardInput.blur();
+
+                keyboardInput.style.display = 'none';
+                passwordInput.style.display = 'none';
+
+                canvas.focus();
+            }
+
+            function emscriptenKeyPress(code, charCode) {
+                Module.ccall(
+                    'browser_key_pressed',
+                    null,
+                    ['number'],
+                    [code, charCode]
+                );
+            }
+
+            function keyboardInputEvent(event) {
+                for (let i = 0; i < 255; i++) {
+                    emscriptenKeyPress(BACKSPACE_KEY_CODE, BACKSPACE_KEY_CODE);
+                }
+
+                for (const character of event.target.value.split('')) {
+                    emscriptenKeyPress(-1, character.charCodeAt(0));
+                }
+            }
+
+            keyboardInput.addEventListener('input', keyboardInputEvent);
+            passwordInput.addEventListener('input', keyboardInputEvent);
+
+            function keyboardDownEvent(event) {
+                if (event.key === 'Enter') {
+                    emscriptenKeyPress(ENTER_KEY_CODE, ENTER_KEY_CODE);
+
+                    keyboardInput.style.display = 'none';
+                    passwordInput.style.display = 'none';
+
+                    // if we blur and re-focus too fast, safari won't let us
+                    // focusCanvas();
+                }
+            }
+
+            keyboardInput.addEventListener('keydown', keyboardDownEvent);
+            passwordInput.addEventListener('keydown', keyboardDownEvent);
+
+            function keyboardBlurEvent() {
+                window._mudclientCanResize = false;
+
+                setTimeout(() => {
+                    window._mudclientCanResize = true;
+                }, 1000);
+            }
+
+            // sometimes the viewport takes more time to return to normal after
+            // the input is blur'd
+            // TODO maybe just poll for focused element
+            keyboardInput.addEventListener('blur', keyboardBlurEvent);
+            passwordInput.addEventListener('blur', keyboardBlurEvent);
+
+            function keyboardFocusEvent(event) {
+                event.target.selectionStart = event.target.selectionEnd =
+                    event.target.value.length;
+            }
+
+            keyboardInput.addEventListener('focus', keyboardFocusEvent);
+            passwordInput.addEventListener('focus', keyboardFocusEvent);
+
+            window._mudclientCanResize = true;
+
+            window._mudclientKeyboard = keyboardInput;
+            window._mudclientPassword = passwordInput;
+
+            window._mudclientIsTouch =
+                navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+        </script>
+        {{{ SCRIPT }}}
+    </body>
+</html>
