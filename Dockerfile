@@ -1,5 +1,5 @@
 ARG EMSDK_VERSION=3.1.74
-ARG OPENJDK_VERSION=18
+ARG OPENJDK_VERSION=25
 FROM alpine/git AS patch-server
 WORKDIR /openrsc
 ADD https://github.com/Open-RSC/Core-Framework.git#develop /openrsc/
